@@ -1,0 +1,4 @@
+build/*
+**/*.png
+cmake-build-debug/*
+lpng1421/*
