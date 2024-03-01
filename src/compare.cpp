@@ -27,6 +27,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "smart_graph.h"
+
 #define NUM_TESTS 50
 
 using namespace png;
@@ -429,9 +431,14 @@ int main(int argc, char **argv) {
     }
   }
 
-  // TEST OPEN VS STRICT GRAPHS ON RANDOM STARTS AND GOALS
+  cout << "Building smart graph" << endl;
+  SmartOpenSpaceSearch smart_search(
+      png::image<png::rgb_pixel>("campus_v3.png"));
+
+  // TEST OPEN VS STRICT VS SMART GRAPHS ON RANDOM STARTS AND GOALS
   vector<double> open_distances;
   vector<double> strict_distances;
+  vector<double> smart_distances;
   for (int i = 0; i < NUM_TESTS; i++) {
     // SELECT RANDOM START AND GOAL
     auto it = intersection.begin();
@@ -441,17 +448,26 @@ int main(int argc, char **argv) {
     std::advance(it, rand() % intersection.size());
     int goal = *it;
 
-    cout << "Start: (" << (int)(start / image_width) << ","
-         << (int)(start % image_width) << ")"
+    auto start_y = (int)(start / image_width);
+    auto start_x = (int)(start % image_width);
+    cout << "Start: (" << start_y << "," << start_x << ")"
          << "[#" << start << "]" << endl;
-    cout << "Goal: (" << (int)(goal / image_width) << ","
-         << (int)(goal % image_width) << ")"
+    auto goal_y = (int)(goal / image_width);
+    auto goal_x = (int)(goal % image_width);
+    cout << "Goal: (" << goal_y << "," << goal_x << ")"
          << "[#" << goal << "]" << endl;
 
     double strict = strict_a_star(start, goal, g_s, image_width, image_height);
     double open = open_a_star(start, goal, g_o, image_width, image_height);
+
+    undirected_graph_t g_smart = smart_search.base_graph_with_start_end(
+        {start_x, start_y}, {goal_x, goal_y});
+
+    double smart = open_a_star(start, goal, g_smart, image_width, image_height);
+
     cout << "Strict: " << strict << endl;
     cout << "Open: " << open << endl;
+    cout << "Smart: " << smart << endl;
     open_distances.push_back(open);
     strict_distances.push_back(strict);
   }
