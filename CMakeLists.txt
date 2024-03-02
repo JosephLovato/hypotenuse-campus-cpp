@@ -7,8 +7,8 @@ find_package(PNG REQUIRED)
 include_directories(${PNG_INCLUDE_DIR})
 include_directories(${Boost_INCLUDE_DIRS})
 
-add_executable(hypotenuse_campus compare.cpp)
-add_executable(smart_graph_test smart_test.cpp smart_graph.h)
+add_executable(hypotenuse_campus src/compare.cpp src/types.h)
+add_executable(smart_graph_test src/smart_test.cpp src/smart_graph.h src/types.h)
 
 target_link_libraries(hypotenuse_campus ${PNG_LIBRARY})
 target_link_libraries(smart_graph_test ${PNG_LIBRARY})

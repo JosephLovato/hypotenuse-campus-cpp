@@ -1,3 +1,4 @@
+#include "types.h"
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/astar_search.hpp>
 #include <boost/graph/betweenness_centrality.hpp>
@@ -18,23 +19,6 @@
 using namespace png;
 using namespace std;
 using namespace boost;
-
-// graph definitions
-typedef float cost;
-typedef adjacency_list<setS, vecS, undirectedS, no_property,
-                       property<edge_weight_t, cost>>
-    undirected_graph_t;
-typedef property_map<undirected_graph_t, edge_weight_t>::type WeightMap;
-typedef undirected_graph_t::vertex_descriptor vertex;
-typedef undirected_graph_t::edge_descriptor edge_descriptor;
-typedef std::pair<int, int> edge;
-
-typedef png::image<png::rgb_pixel> png_image;
-
-struct Point {
-  int x;
-  int y;
-};
 
 /**
  * @brief Return list of points (grid cells) between points a and b,
@@ -154,7 +138,7 @@ public:
     // draw_on_image_create_new(on_corners, {0, 255, 0}, "test.png");
     // draw line between each pair of corner points and connect them
     // if no obstacles
-    WeightMap weight_map = get(edge_weight, graph);
+    weight_map_t weight_map = get(edge_weight, graph);
     for (int i = 0; i < corner_points.size(); i++) {
       for (int j = i + 1; j < corner_points.size(); j++) {
         // calculate all grid cells between points
@@ -178,7 +162,7 @@ public:
   }
 
   bool add_edge_internal(Point point_i, Point point_j,
-                         undirected_graph_t &graph, WeightMap &weight_map) {
+                         undirected_graph_t &graph, weight_map_t &weight_map) {
     edge_descriptor e;
     bool inserted;
     boost::tie(e, inserted) = add_edge(point_to_vertex_label(point_i),
@@ -195,7 +179,7 @@ public:
     std::pair<boost::adjacency_list<>::vertex_iterator,
               boost::adjacency_list<>::vertex_iterator>
         vs = boost::vertices(copy);
-    WeightMap weight_map = get(edge_weight, copy);
+    weight_map_t weight_map = get(edge_weight, copy);
 
     for (auto i = vs.first; i != vs.second; i++) {
       auto v = *i;

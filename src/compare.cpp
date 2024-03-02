@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "smart_graph.h"
+#include "types.h"
 
 #define NUM_TESTS 50
 
@@ -37,12 +38,6 @@ using namespace boost;
 
 int count_nodes = 0;
 int count_edges = 0;
-
-// auxiliary types
-struct location {
-  float y, x; // lat, long
-};
-typedef float cost;
 
 // euclidean distance heuristic
 template <class Graph, class CostType>
@@ -84,14 +79,6 @@ private:
   Vertex m_goal;
 };
 
-typedef adjacency_list<setS, vecS, undirectedS, no_property,
-                       property<edge_weight_t, cost>>
-    mygraph_t;
-typedef property_map<mygraph_t, edge_weight_t>::type WeightMap;
-typedef mygraph_t::vertex_descriptor vertex;
-typedef mygraph_t::edge_descriptor edge_descriptor;
-typedef std::pair<int, int> edge;
-
 bool is_traversable_pixel(int y, int x, png::image<png::rgb_pixel> &image) {
   bool f = (y < image.get_height() && x < image.get_width() && y >= 0 &&
             x >= 0 && image[y][x].red < 245);
@@ -105,8 +92,8 @@ bool is_traversable_pixel_green(int y, int x,
   return f;
 }
 
-bool add_edge_f(int current, int y, int x, float weight, WeightMap &wm,
-                mygraph_t &g, int image_width) {
+bool add_edge_f(int current, int y, int x, float weight, weight_map_t &wm,
+                undirected_graph_t &g, int image_width) {
   count_edges++;
   edge_descriptor e;
   bool inserted;
@@ -115,26 +102,26 @@ bool add_edge_f(int current, int y, int x, float weight, WeightMap &wm,
   return inserted;
 }
 
-int strict_a_star(int start_in, int goal_in, mygraph_t g_s, int image_width,
-                  int image_height) {
-  typedef mygraph_t::vertex_descriptor vertex;
+int strict_a_star(int start_in, int goal_in, undirected_graph_t g_s,
+                  int image_width, int image_height) {
+  typedef undirected_graph_t::vertex_descriptor vertex;
 
-  mygraph_t::vertex_descriptor start = start_in;
-  mygraph_t::vertex_descriptor goal = goal_in;
+  undirected_graph_t::vertex_descriptor start = start_in;
+  undirected_graph_t::vertex_descriptor goal = goal_in;
 
-  vector<mygraph_t::vertex_descriptor> p(num_vertices(g_s));
+  vector<undirected_graph_t::vertex_descriptor> p(num_vertices(g_s));
   vector<cost> d(num_vertices(g_s));
 
   try {
     // call astar named parameter interface
-    astar_search_tree(
-        g_s, start,
-        distance_heuristic<mygraph_t, cost>(goal, image_width, image_height),
-        predecessor_map(
-            make_iterator_property_map(p.begin(), get(vertex_index, g_s)))
-            .distance_map(
-                make_iterator_property_map(d.begin(), get(vertex_index, g_s)))
-            .visitor(astar_goal_visitor<vertex>(goal)));
+    astar_search_tree(g_s, start,
+                      distance_heuristic<undirected_graph_t, cost>(
+                          goal, image_width, image_height),
+                      predecessor_map(make_iterator_property_map(
+                                          p.begin(), get(vertex_index, g_s)))
+                          .distance_map(make_iterator_property_map(
+                              d.begin(), get(vertex_index, g_s)))
+                          .visitor(astar_goal_visitor<vertex>(goal)));
   } catch (found_goal fg) { // found a path to the goal
     list<vertex> shortest_path;
     for (vertex v = goal;; v = p[v]) {
@@ -158,27 +145,27 @@ int strict_a_star(int start_in, int goal_in, mygraph_t g_s, int image_width,
   return -1;
 }
 
-int open_a_star(int start_in, int goal_in, mygraph_t g, int image_width,
-                int image_height) {
+int open_a_star(int start_in, int goal_in, undirected_graph_t g,
+                int image_width, int image_height) {
 
-  typedef mygraph_t::vertex_descriptor vertex;
+  typedef undirected_graph_t::vertex_descriptor vertex;
 
-  mygraph_t::vertex_descriptor start = start_in;
-  mygraph_t::vertex_descriptor goal = goal_in;
+  undirected_graph_t::vertex_descriptor start = start_in;
+  undirected_graph_t::vertex_descriptor goal = goal_in;
 
-  vector<mygraph_t::vertex_descriptor> p(num_vertices(g));
+  vector<undirected_graph_t::vertex_descriptor> p(num_vertices(g));
   vector<cost> d(num_vertices(g));
 
   try {
     // call astar named parameter interface
-    astar_search_tree(
-        g, start,
-        distance_heuristic<mygraph_t, cost>(goal, image_width, image_height),
-        predecessor_map(
-            make_iterator_property_map(p.begin(), get(vertex_index, g)))
-            .distance_map(
-                make_iterator_property_map(d.begin(), get(vertex_index, g)))
-            .visitor(astar_goal_visitor<vertex>(goal)));
+    astar_search_tree(g, start,
+                      distance_heuristic<undirected_graph_t, cost>(
+                          goal, image_width, image_height),
+                      predecessor_map(make_iterator_property_map(
+                                          p.begin(), get(vertex_index, g)))
+                          .distance_map(make_iterator_property_map(
+                              d.begin(), get(vertex_index, g)))
+                          .visitor(astar_goal_visitor<vertex>(goal)));
   } catch (found_goal fg) { // found a path to the goal
     list<vertex> shortest_path;
     for (vertex v = goal;; v = p[v]) {
@@ -212,8 +199,8 @@ int main(int argc, char **argv) {
   unsigned int count_strict_vertices = 0;
 
   cout << "Converting campus to graph (strict paths only)..." << endl;
-  mygraph_t g_s;
-  WeightMap weightmap_s = get(edge_weight, g_s);
+  undirected_graph_t g_s;
+  weight_map_t weightmap_s = get(edge_weight, g_s);
 
   for (png::uint_32 y = 0; y < image_height; ++y) {
     for (png::uint_32 x = 0; x < image_width; ++x) {
@@ -316,9 +303,8 @@ int main(int argc, char **argv) {
   unsigned int count_open_vertices = 0;
 
   cout << "Converting campus to graph..." << endl;
-  mygraph_t g_o;
-  WeightMap weightmap_o = get(edge_weight, g_o);
-  // location locations[image.get_height()*image.get_width()];
+  undirected_graph_t g_o;
+  weight_map_t weightmap_o = get(edge_weight, g_o);
   for (png::uint_32 y = 0; y < image_height; ++y) {
     for (png::uint_32 x = 0; x < image_width; ++x) {
       // Check to see if this pixel can be a node (not a building)
