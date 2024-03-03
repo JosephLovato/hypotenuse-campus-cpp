@@ -2,3 +2,8 @@ build/*
 **/*.png
 cmake-build-debug/*
 lpng1421/*
+out_images/**
+.vscode/**
+.idea/**
+.cache/**
+

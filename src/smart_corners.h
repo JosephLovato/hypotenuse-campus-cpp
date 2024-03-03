@@ -1,4 +1,7 @@
+#include "boost_astar_defs.h"
+#include "open_space_shortest_path.h"
 #include "types.h"
+#include "utils.h"
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/astar_search.hpp>
 #include <boost/graph/betweenness_centrality.hpp>
@@ -66,100 +69,10 @@ inline std::tuple<bool, vector<Point>> bresenham_plot(Point &a, Point &b,
   return {true, points};
 }
 
-inline double distance_between(Point a, Point b) {
-  double delta_x = a.x - b.x;
-  double delta_y = a.y - a.y;
-  return sqrt((delta_x * delta_x) + (delta_y * delta_y));
-}
-
-class SmartOpenSpaceSearch {
-private:
-  undirected_graph_t graph;
-  png_image image;
-  unsigned int image_height;
-  unsigned int image_width;
-  vector<Point> all_edge_points;
-
-  inline int point_to_vertex_label(Point p) { return p.y * image_width + p.x; }
-
-  bool is_traversable_pixel(int x, int y) {
-    return (y < image.get_height() && x < image.get_width() && y >= 0 &&
-            x >= 0 && image[y][x].red < 245);
-  }
-
-  bool is_on_corner(int x, int y) {
-    int count = 0;
-    if (x + 1 < image_width && image[y][x + 1].red >= 245)
-      count++;
-    if (x - 1 >= 0 && image[y][x - 1].red >= 245)
-      count++;
-    if (y + 1 < image_height && image[y + 1][x].red >= 245)
-      count++;
-    if (y - 1 >= 0 && image[y - 1][x].red >= 245)
-      count++;
-
-    if (x + 1 < image_width && y + 1 < image_height &&
-        image[y + 1][x + 1].red >= 245)
-      count++;
-    if (x - 1 >= 0 && y - 1 >= 0 && image[y - 1][x - 1].red >= 245)
-      count++;
-    if (y + 1 < image_height && x - 1 >= 0 && image[y + 1][x - 1].red >= 245)
-      count++;
-    if (y - 1 >= 0 && x + 1 < image_width && image[y - 1][x + 1].red >= 245)
-      count++;
-
-    return count == 1;
-  }
-
-  void draw_on_image_create_new(vector<Point> points,
-                                png::rgb_pixel pixel_colors, string file_name) {
-    png_image out_image(image);
-    for (auto &point : points) {
-      out_image[point.y][point.x] = pixel_colors;
-    }
-    out_image.write(file_name);
-  }
-
-public:
-  SmartOpenSpaceSearch(png_image reference_image) {
-    this->image = reference_image;
-    image_height = reference_image.get_height();
-    image_width = reference_image.get_width();
-
-    // build base graph
-    // discover all pixels on the corner of innavigable pixels
-    vector<Point> corner_points;
-    for (png::uint_32 y = 0; y < image_height; y++) {
-      for (png::uint_32 x = 0; x < image_width; x++) {
-        if (is_on_corner(x, y))
-          corner_points.push_back({static_cast<int>(x), static_cast<int>(y)});
-      }
-    }
-    // draw_on_image_create_new(on_corners, {0, 255, 0}, "test.png");
-    // draw line between each pair of corner points and connect them
-    // if no obstacles
-    weight_map_t weight_map = get(edge_weight, graph);
-    for (int i = 0; i < corner_points.size(); i++) {
-      for (int j = i + 1; j < corner_points.size(); j++) {
-        // calculate all grid cells between points
-        auto &point_i = corner_points[i];
-        auto &point_j = corner_points[j];
-        bool no_obstacles;
-        vector<Point> points;
-        std::tie(no_obstacles, points) =
-            bresenham_plot(point_i, point_j, image);
-        // if no obstacle, connect two vertices
-        if (no_obstacles) {
-          add_edge_internal(point_i, point_j, graph, weight_map);
-          all_edge_points.insert(all_edge_points.end(), points.begin(),
-                                 points.end());
-        }
-      }
-    }
-    cout << "base smart graph num vertices: " << corner_points.size() << endl;
-    cout << "base smart graph num edges: " << num_edges(graph) << endl;
-    // draw_on_image_create_new(all_edge_points, {0, 0, 255}, "edges.png");
-  }
+class SmartCorners : public OpenSpaceShortestPath {
+protected:
+  undirected_graph_t _graph;
+  vector<Point> _all_edge_points;
 
   bool add_edge_internal(Point point_i, Point point_j,
                          undirected_graph_t &graph, weight_map_t &weight_map) {
@@ -171,9 +84,33 @@ public:
     return inserted;
   }
 
+  bool is_on_corner(int x, int y) {
+    int count = 0;
+    if (x + 1 < _image_width && _image[y][x + 1].red >= 245)
+      count++;
+    if (x - 1 >= 0 && _image[y][x - 1].red >= 245)
+      count++;
+    if (y + 1 < _image_height && _image[y + 1][x].red >= 245)
+      count++;
+    if (y - 1 >= 0 && _image[y - 1][x].red >= 245)
+      count++;
+
+    if (x + 1 < _image_width && y + 1 < _image_height &&
+        _image[y + 1][x + 1].red >= 245)
+      count++;
+    if (x - 1 >= 0 && y - 1 >= 0 && _image[y - 1][x - 1].red >= 245)
+      count++;
+    if (y + 1 < _image_height && x - 1 >= 0 && _image[y + 1][x - 1].red >= 245)
+      count++;
+    if (y - 1 >= 0 && x + 1 < _image_width && _image[y - 1][x + 1].red >= 245)
+      count++;
+
+    return count == 1;
+  }
+
   undirected_graph_t base_graph_with_start_end(Point start, Point end) {
     // copy graph
-    undirected_graph_t copy(graph);
+    undirected_graph_t copy(_graph);
 
     // connect start and end points to visible vertices
     std::pair<boost::adjacency_list<>::vertex_iterator,
@@ -183,13 +120,13 @@ public:
 
     for (auto i = vs.first; i != vs.second; i++) {
       auto v = *i;
-      int y = (int)(v / image_width);
-      int x = (int)(v % image_width);
+      int y = (int)(v / _image_width);
+      int x = (int)(v % _image_width);
       Point p = {x, y};
       // connect start
       bool no_obstacles_start;
       std::tie(no_obstacles_start, std::ignore) =
-          bresenham_plot(start, p, image);
+          bresenham_plot(start, p, _image);
       // if no obstacle, connect two vertices
       if (no_obstacles_start) {
         add_edge_internal(start, p, copy, weight_map);
@@ -197,14 +134,105 @@ public:
 
       // connect end
       bool no_obstacles_end;
-      std::tie(no_obstacles_end, std::ignore) = bresenham_plot(end, p, image);
+      std::tie(no_obstacles_end, std::ignore) = bresenham_plot(end, p, _image);
       // if no obstacle, connect two vertices
       if (no_obstacles_end) {
         add_edge_internal(end, p, copy, weight_map);
       }
     }
-    cout << "old edge count: " << num_edges(graph) << endl;
-    cout << "new edge count: " << num_edges(copy) << endl;
     return copy;
+  }
+
+  std::tuple<double, png_image, unsigned int>
+  shortest_path_internal(Point start, Point end) override {
+
+    undirected_graph_t c_graph = base_graph_with_start_end(start, end);
+
+    ::vertex begin = point_to_vertex_label(start);
+    ::vertex goal = point_to_vertex_label(end);
+
+    vector<::vertex> p(::num_vertices(c_graph));
+    vector<cost> d(::num_vertices(c_graph));
+
+    try {
+      // call astar named parameter interface
+      astar_search_tree(
+          c_graph, begin,
+          distance_heuristic<undirected_graph_t, cost>(goal, _image_width,
+                                                       _image_height),
+          predecessor_map(
+              make_iterator_property_map(p.begin(), get(vertex_index, c_graph)))
+              .distance_map(make_iterator_property_map(
+                  d.begin(), get(vertex_index, c_graph)))
+              .visitor(astar_goal_visitor<::vertex>(goal)));
+    } catch (found_goal fg) { // found a path to the goal
+      list<::vertex> shortest_path;
+      for (::vertex v = goal;; v = p[v]) {
+        shortest_path.push_front(v);
+        if (p[v] == v)
+          break;
+      }
+
+      list<::vertex>::iterator spi = shortest_path.begin();
+
+      png::image<png::rgb_pixel> out_image("campus_base_a.png");
+      out_image[start.y][start.x].blue = 255;
+      out_image[end.y][end.x].green = 255;
+      vector<Point> full_route;
+      ::vertex current = *spi;
+      ++spi;
+      for (; spi != shortest_path.end(); ++spi) {
+        vector<Point> line;
+        Point a = {vertex_label_x_part(current), vertex_label_y_part(current)};
+        Point b = {vertex_label_x_part(*spi), vertex_label_y_part(*spi)};
+        std::tie(std::ignore, line) = bresenham_plot(a, b, _image);
+        full_route.insert(full_route.end(), line.begin(), line.end());
+        current = *spi;
+      }
+      draw_on_image(full_route, {252, 3, 248}, out_image);
+
+      return {d[goal], out_image, 0};
+    }
+    return {-1, png_image(), 0};
+  }
+
+public:
+  SmartCorners(string filepath) : OpenSpaceShortestPath(filepath) {}
+
+  void initialize() override {
+
+    // build base graph
+    // discover all pixels on the corner of innavigable pixels
+    vector<Point> corner_points;
+    for (png::uint_32 y = 0; y < _image_height; y++) {
+      for (png::uint_32 x = 0; x < _image_width; x++) {
+        if (is_on_corner(x, y))
+          corner_points.push_back({static_cast<int>(x), static_cast<int>(y)});
+      }
+    }
+    _num_vertices = corner_points.size();
+    // draw_on_image_create_new(on_corners, {0, 255, 0}, "test.png");
+    // draw line between each pair of corner points and connect them
+    // if no obstacles
+    weight_map_t weight_map = get(edge_weight, _graph);
+    for (int i = 0; i < corner_points.size(); i++) {
+      for (int j = i + 1; j < corner_points.size(); j++) {
+        // calculate all grid cells between points
+        auto &point_i = corner_points[i];
+        auto &point_j = corner_points[j];
+        bool no_obstacles;
+        vector<Point> points;
+        std::tie(no_obstacles, points) =
+            bresenham_plot(point_i, point_j, _image);
+        // if no obstacle, connect two vertices
+        if (no_obstacles) {
+          add_edge_internal(point_i, point_j, _graph, weight_map);
+          _all_edge_points.insert(_all_edge_points.end(), points.begin(),
+                                  points.end());
+        }
+      }
+    }
+    _num_edges = ::num_edges(_graph);
+    // draw_on_image_create_new(all_edge_points, {0, 0, 255}, "edges.png");
   }
 };
