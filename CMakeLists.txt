@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(hypotenuse_campus)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_BUILD_TYPE Debug)
+add_compile_options(-pedantic -Wall -Wc++11-extensions -O3)
 find_package(Boost 1.65.0 COMPONENTS system filesystem REQUIRED)
 find_package(PNG REQUIRED)
 include_directories(${PNG_INCLUDE_DIR})

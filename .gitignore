@@ -3,7 +3,9 @@ build/*
 cmake-build-debug/*
 lpng1421/*
 out_images/**
+out_imags_red/**
 .vscode/**
 .idea/**
 .cache/**
 
+reference_stats.txt

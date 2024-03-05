@@ -3,6 +3,7 @@
 #include "boost_astar_defs.h"
 #include "open_space_shortest_path.h"
 #include "types.h"
+#include <chrono>
 
 class Spider : public OpenSpaceShortestPath {
 protected:
@@ -23,8 +24,10 @@ protected:
     return inserted;
   }
 
-  std::tuple<double, png_image, unsigned int>
+  std::tuple<double, png_image, double>
   shortest_path_internal(Point start, Point end) override {
+
+    auto clock_start = chrono::high_resolution_clock::now();
 
     ::vertex begin = point_to_vertex_label(start);
     ::vertex goal = point_to_vertex_label(end);
@@ -44,6 +47,7 @@ protected:
                   d.begin(), get(vertex_index, _graph)))
               .visitor(astar_goal_visitor<::vertex>(goal)));
     } catch (found_goal fg) { // found a path to the goal
+
       list<::vertex> shortest_path;
       for (::vertex v = goal;; v = p[v]) {
         shortest_path.push_front(v);
@@ -51,9 +55,11 @@ protected:
           break;
       }
 
+      auto clock_stop = chrono::high_resolution_clock::now();
+
       list<::vertex>::iterator spi = shortest_path.begin();
 
-      png::image<png::rgb_pixel> out_image("campus_base_a.png");
+      png::image<png::rgb_pixel> out_image("campus_v3.png");
       out_image[start.y][start.x].blue = 255;
       out_image[end.y][end.x].green = 255;
       for (++spi; spi != shortest_path.end(); ++spi) {
@@ -61,10 +67,13 @@ protected:
             255;
       }
 
-      out_image.write("out_strict.png");
-      return {d[goal], out_image, 0};
+      // out_image.write("out_strict.png");
+      return {
+          d[goal], out_image,
+          chrono::duration_cast<chrono::milliseconds>(clock_stop - clock_start)
+              .count()};
     }
-    return {-1, png_image(), 0};
+    return {-1, png_image(), -1};
   }
 
 public:

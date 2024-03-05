@@ -8,6 +8,7 @@
 #include <boost/graph/graphviz.hpp>
 #include <boost/graph/random.hpp>
 #include <boost/random.hpp>
+#include <chrono>
 #include <cmath>
 #include <ctime>
 #include <fstream>
@@ -73,6 +74,7 @@ class SmartCorners : public OpenSpaceShortestPath {
 protected:
   undirected_graph_t _graph;
   vector<Point> _all_edge_points;
+  vector<Point> _corner_points;
 
   bool add_edge_internal(Point point_i, Point point_j,
                          undirected_graph_t &graph, weight_map_t &weight_map) {
@@ -110,19 +112,16 @@ protected:
 
   undirected_graph_t base_graph_with_start_end(Point start, Point end) {
     // copy graph
+    auto s = chrono::high_resolution_clock::now();
     undirected_graph_t copy(_graph);
+    auto t = chrono::high_resolution_clock::now();
 
-    // connect start and end points to visible vertices
-    std::pair<boost::adjacency_list<>::vertex_iterator,
-              boost::adjacency_list<>::vertex_iterator>
-        vs = boost::vertices(copy);
+    cout << chrono::duration_cast<chrono::milliseconds>(t - s).count() << endl;
+
+    // connect start and end points to visible corner vertices
     weight_map_t weight_map = get(edge_weight, copy);
 
-    for (auto i = vs.first; i != vs.second; i++) {
-      auto v = *i;
-      int y = (int)(v / _image_width);
-      int x = (int)(v % _image_width);
-      Point p = {x, y};
+    for (auto p : _corner_points) {
       // connect start
       bool no_obstacles_start;
       std::tie(no_obstacles_start, std::ignore) =
@@ -143,8 +142,10 @@ protected:
     return copy;
   }
 
-  std::tuple<double, png_image, unsigned int>
+  std::tuple<double, png_image, double>
   shortest_path_internal(Point start, Point end) override {
+
+    auto clock_start = chrono::high_resolution_clock::now();
 
     undirected_graph_t c_graph = base_graph_with_start_end(start, end);
 
@@ -166,6 +167,8 @@ protected:
                   d.begin(), get(vertex_index, c_graph)))
               .visitor(astar_goal_visitor<::vertex>(goal)));
     } catch (found_goal fg) { // found a path to the goal
+      // auto clock_stop = chrono::high_resolution_clock::now();
+
       list<::vertex> shortest_path;
       for (::vertex v = goal;; v = p[v]) {
         shortest_path.push_front(v);
@@ -173,9 +176,11 @@ protected:
           break;
       }
 
+      auto clock_stop = chrono::high_resolution_clock::now();
+
       list<::vertex>::iterator spi = shortest_path.begin();
 
-      png::image<png::rgb_pixel> out_image("campus_base_a.png");
+      png::image<png::rgb_pixel> out_image("campus_v3.png");
       out_image[start.y][start.x].blue = 255;
       out_image[end.y][end.x].green = 255;
       vector<Point> full_route;
@@ -191,9 +196,12 @@ protected:
       }
       draw_on_image(full_route, {252, 3, 248}, out_image);
 
-      return {d[goal], out_image, 0};
+      return {
+          d[goal], out_image,
+          chrono::duration_cast<chrono::milliseconds>(clock_stop - clock_start)
+              .count()};
     }
-    return {-1, png_image(), 0};
+    return {-1, png_image(), -1};
   }
 
 public:
@@ -203,23 +211,22 @@ public:
 
     // build base graph
     // discover all pixels on the corner of innavigable pixels
-    vector<Point> corner_points;
     for (png::uint_32 y = 0; y < _image_height; y++) {
       for (png::uint_32 x = 0; x < _image_width; x++) {
         if (is_on_corner(x, y))
-          corner_points.push_back({static_cast<int>(x), static_cast<int>(y)});
+          _corner_points.push_back({static_cast<int>(x), static_cast<int>(y)});
       }
     }
-    _num_vertices = corner_points.size();
+    _num_vertices = _corner_points.size();
     // draw_on_image_create_new(on_corners, {0, 255, 0}, "test.png");
     // draw line between each pair of corner points and connect them
     // if no obstacles
     weight_map_t weight_map = get(edge_weight, _graph);
-    for (int i = 0; i < corner_points.size(); i++) {
-      for (int j = i + 1; j < corner_points.size(); j++) {
+    for (int i = 0; i < _corner_points.size(); i++) {
+      for (int j = i + 1; j < _corner_points.size(); j++) {
         // calculate all grid cells between points
-        auto &point_i = corner_points[i];
-        auto &point_j = corner_points[j];
+        auto &point_i = _corner_points[i];
+        auto &point_j = _corner_points[j];
         bool no_obstacles;
         vector<Point> points;
         std::tie(no_obstacles, points) =

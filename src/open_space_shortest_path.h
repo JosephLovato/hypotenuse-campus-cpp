@@ -37,7 +37,17 @@ protected:
     out_image.write(file_name);
   }
 
-  virtual std::tuple<double, png_image, unsigned int>
+  /**
+   * @brief Calculate the short path distance between the start
+   * and end points (for internal use only)
+   *
+   * @param start
+   * @param end
+   * @return Tuple with {total pixel distance, png_image of path, total
+   * execution time in milliseconds}; Returns {-1, empty png_image, -1} if
+   * route cannot be found
+   */
+  virtual std::tuple<double, png_image, double>
   shortest_path_internal(Point start, Point end) = 0;
 
   virtual void initialize() = 0;
@@ -53,21 +63,21 @@ public:
   unsigned int num_vertices() { return _num_vertices; }
 
   /**
-   * @brief Calculate the short path distance between the start
+   * @brief Calculate the shortest path distance between the start
    * and end points
    *
    * @param start
    * @param end
-   * @return tuple with (distance pixel distance, png_image of path, timing of
-   * traversal in //TODO ? seconds)
+   * @return Tuple with {total pixel distance, png_image of path, total
+   * execution time in milliseconds}; Returns {-1, empty png_image, -1} if
+   * route cannot be found
    */
-  std::tuple<double, png_image, unsigned int> shortest_path(Point start,
-                                                            Point end) {
+  std::tuple<double, png_image, double> shortest_path(Point start, Point end) {
     if (!is_point_in_boundaries(start)) {
       throw error("start point is out of boundaries");
     }
     if (!is_point_in_boundaries(end)) {
-      throw error("end ponit is out boundaries");
+      throw error("end point is out boundaries");
     }
     return shortest_path_internal(start, end);
   }

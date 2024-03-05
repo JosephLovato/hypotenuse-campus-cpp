@@ -10,7 +10,7 @@ typedef image<rgb_pixel> png_image;
 
 // boost undirected graph
 typedef float cost;
-typedef adjacency_list<setS, vecS, undirectedS, no_property,
+typedef adjacency_list<hash_setS, vecS, undirectedS, no_property,
                        property<edge_weight_t, cost>>
     undirected_graph_t;
 typedef property_map<undirected_graph_t, edge_weight_t>::type weight_map_t;
