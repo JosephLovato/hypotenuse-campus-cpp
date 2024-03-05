@@ -28,6 +28,9 @@ using namespace boost;
  * @brief Return list of points (grid cells) between points a and b,
  * returns false and an empty list if hit a red obstacle in the image
  *
+ * @note uses Bresenham's line algorithm, as described by Alois Zingl:
+ * https://zingl.github.io/bresenham.html
+ *
  * @param a first point
  * @param b second point
  * @return tuple with boolean if hit no obstacles and list of points if
