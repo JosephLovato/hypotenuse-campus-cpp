@@ -113,16 +113,9 @@ protected:
     return count == 1;
   }
 
-  undirected_graph_t base_graph_with_start_end(Point start, Point end) {
-    // copy graph
-    auto s = chrono::high_resolution_clock::now();
-    undirected_graph_t copy(_graph);
-    auto t = chrono::high_resolution_clock::now();
-
-    cout << chrono::duration_cast<chrono::milliseconds>(t - s).count() << endl;
-
+  void add_edges_start_end(Point start, Point end) {
     // connect start and end points to visible corner vertices
-    weight_map_t weight_map = get(edge_weight, copy);
+    weight_map_t weight_map = get(edge_weight, _graph);
 
     for (auto p : _corner_points) {
       // connect start
@@ -131,7 +124,7 @@ protected:
           bresenham_plot(start, p, _image);
       // if no obstacle, connect two vertices
       if (no_obstacles_start) {
-        add_edge_internal(start, p, copy, weight_map);
+        add_edge_internal(start, p, _graph, weight_map);
       }
 
       // connect end
@@ -139,10 +132,23 @@ protected:
       std::tie(no_obstacles_end, std::ignore) = bresenham_plot(end, p, _image);
       // if no obstacle, connect two vertices
       if (no_obstacles_end) {
-        add_edge_internal(end, p, copy, weight_map);
+        add_edge_internal(end, p, _graph, weight_map);
       }
     }
-    return copy;
+
+    // connect start and end directly if no obstacles
+    bool no_obstacles_direct;
+    std::tie(no_obstacles_direct, std::ignore) =
+        bresenham_plot(start, end, _image);
+    // if no obstacle, connect two vertices
+    if (no_obstacles_direct) {
+      add_edge_internal(start, end, _graph, weight_map);
+    }
+  }
+
+  void remove_edges_start_end(Point start, Point end) {
+    clear_vertex(point_to_vertex_label(start), _graph);
+    clear_vertex(point_to_vertex_label(end), _graph);
   }
 
   std::tuple<double, png_image, double>
@@ -150,27 +156,26 @@ protected:
 
     auto clock_start = chrono::high_resolution_clock::now();
 
-    undirected_graph_t c_graph = base_graph_with_start_end(start, end);
+    add_edges_start_end(start, end);
 
     ::vertex begin = point_to_vertex_label(start);
     ::vertex goal = point_to_vertex_label(end);
 
-    vector<::vertex> p(::num_vertices(c_graph));
-    vector<cost> d(::num_vertices(c_graph));
+    vector<::vertex> p(::num_vertices(_graph));
+    vector<cost> d(::num_vertices(_graph));
 
     try {
       // call astar named parameter interface
       astar_search_tree(
-          c_graph, begin,
+          _graph, begin,
           distance_heuristic<undirected_graph_t, cost>(goal, _image_width,
                                                        _image_height),
           predecessor_map(
-              make_iterator_property_map(p.begin(), get(vertex_index, c_graph)))
+              make_iterator_property_map(p.begin(), get(vertex_index, _graph)))
               .distance_map(make_iterator_property_map(
-                  d.begin(), get(vertex_index, c_graph)))
+                  d.begin(), get(vertex_index, _graph)))
               .visitor(astar_goal_visitor<::vertex>(goal)));
     } catch (found_goal fg) { // found a path to the goal
-      // auto clock_stop = chrono::high_resolution_clock::now();
 
       list<::vertex> shortest_path;
       for (::vertex v = goal;; v = p[v]) {
@@ -178,6 +183,8 @@ protected:
         if (p[v] == v)
           break;
       }
+
+      remove_edges_start_end(start, end);
 
       auto clock_stop = chrono::high_resolution_clock::now();
 

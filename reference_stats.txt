@@ -1,0 +1,17 @@
+Open Average Distance (pixels): 511.238
+Strict Average Distance (pixels): 564.072
+Smart Average Distance (pixels) 490.999
+Open Average Time (ms): 34.32
+Strict Average Time (ms): 18.54
+Smart Average Time (ms) 115.04
+
+--- remove graph copying in smart corners and just
+--- add edges to start/end then remove them;
+--- also add direct edge from start to end (edge case = Test #42)
+
+Open Average Distance (pixels): 511.238
+Strict Average Distance (pixels): 564.072
+Smart Average Distance (pixels) 489.691
+Open Average Time (ms): 25.48
+Strict Average Time (ms): 15.4
+Smart Average Time (ms) 11.18

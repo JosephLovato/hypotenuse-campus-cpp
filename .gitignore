@@ -8,8 +8,6 @@ out_imags_red/**
 .idea/**
 .cache/**
 
-reference_stats.txt
-
 !/campus_v3.png
 !/campus_base_a.png
 !/campus_green_v1.png
